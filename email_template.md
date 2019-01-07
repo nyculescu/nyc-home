@@ -9,6 +9,6 @@ Hi!
   {text_to_be_added}
 
   The script was run on
-  {timestamp}
+  {timestamp} | Romania's time zone, GMT+2
 
 B'bye now!
