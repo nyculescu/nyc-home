@@ -13,6 +13,9 @@ from requests import get
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+# The latest IP will be stored here: last_ip.txt
+last_ip_txt_file = 'last_ip.txt'
+
 # Group the email configuration parameters
 # Note the 'from_' to avoid using a reserved Python keyword (from)
 EmailConfig = namedtuple('EmailConfig', ['user', 'password', 'from_', 'to'])
@@ -45,8 +48,8 @@ def get_ISP_IP():
   for ip_site in ip_check_sites:
     try:
       if urllib.request.urlopen(ip_site).getcode() == 200:
-        ip_text = re.findall( r'[0-9]+(?:\.[0-9]+){3}', get(ip_site).text)
-        return ip_text
+        ip_text = re.findall(r'[0-9]+(?:\.[0-9]+){3}', get(ip_site).text)
+        return ip_text[0]
     except:
       return 'error'
   return 'error'
@@ -95,24 +98,31 @@ def init():
   return email_config
 
 
-def check_ip_change():
-  isp_ip = get_ISP_IP()
-  if isp_ip != 'error':
-    with open('last_ip.txt', 'r') as file:
-      for line in file:
-        if get_ISP_IP() != line:
+def check_ip_change(ip_):
+  if ip_ != 'error':
+    try:
+      with open(last_ip_txt_file, 'r+') as file:
+        line = file.read(1)
+        if line == [] or line == '':
           return True
         else:
-          return False
+          if ip_ != line:
+            return True
+          else:
+            return False
+    except FileNotFoundError:
+      return True
   else:
     return False
 
 
 if __name__ == '__main__':
   #Check the new IP against the oldest one
-  if check_ip_change():
+  isp_ip = get_ISP_IP()
+  if check_ip_change(isp_ip):
     email_config = init()
     text_body, html_body = compose_email_body()
     send_email(email_config, text_body, html_body)
-    with open('last_ip.txt', 'w', encoding='iso-8859-1') as file:
-      file.write(get_ISP_IP())
+    # The last_ip file is updated here in order to be sure that the email is sent
+    with open(last_ip_txt_file, 'w') as file:
+      file.write(isp_ip)
