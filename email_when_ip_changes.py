@@ -42,11 +42,6 @@ def send_email(email_config):
         server.login(email_config.user, email_config.password)
         server.sendmail(email_config.from_, [email_config.to], msg.as_string())
 
-
-def main():
-  print("first things first")
-
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(type=argparse.FileType('r'), dest='config', help='config file')
