@@ -2,6 +2,8 @@ import argparse
 import configparser
 import requests
 import smtplib
+import sys
+import datetime
 
 from collections import namedtuple
 from requests import get
@@ -12,6 +14,16 @@ from email.mime.text import MIMEText
 # Group the email configuration parameters
 # Note the 'from_' to avoid using a reserved Python keyword (from)
 EmailConfig = namedtuple('EmailConfig', ['user', 'password', 'from_', 'to'])
+
+# Get the email templates from hard disk
+EMAIL_TEMPLATE_FILE = 'email_template.md'
+EMAIL_STYLING_FILE = 'email_styling.html'
+
+with open(EMAIL_TEMPLATE_FILE) as md_file:
+    EMAIL_TEMPLATE = md_file.read()
+
+with open(EMAIL_STYLING_FILE) as html_file:
+    EMAIL_STYLING = html_file.read()
 
 # Get the ISP's IPv4 from the current network
 def get_ISP_IP():
@@ -30,7 +42,9 @@ def send_email(email_config):
     msg['From'] = email_config.from_
     msg['To'] = email_config.to
 
-    text_body = 'The new IP is: %s', get_ISP_IP()
+    text_isp_ip = 'The new IP is: %s' % get_ISP_IP()
+    text_gathered = {'text_to_be_added' : text_isp_ip}
+    text_body = EMAIL_TEMPLATE.format(**text_gathered)
     part_plain = MIMEText(text_body, 'plain')
     #part_html = MIMEText(html_body, 'html')
 
@@ -45,6 +59,7 @@ def send_email(email_config):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(type=argparse.FileType('r'), dest='config', help='config file')
+  parser.add_argument('-o', dest='output', type=argparse.FileType('w'), help='output file', default=sys.stdout)
 
   args = parser.parse_args()
   config = configparser.ConfigParser()
