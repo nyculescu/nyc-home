@@ -5,7 +5,8 @@ import smtplib
 import sys
 import jinja2
 import mistune
-
+import urllib.request
+import re
 from datetime import datetime
 from collections import namedtuple
 from requests import get
@@ -40,8 +41,15 @@ def compose_email_body():
 
 
 def get_ISP_IP():
-  ip = get('https://api.ipify.org').text
-  return ip
+  ip_check_sites = ("https://api.ipify.org", "http://checkip.dyndns.org", "http://ifconfig.me")
+  for ip_site in ip_check_sites:
+    try:
+      if urllib.request.urlopen(ip_site).getcode() == 200:
+        ip_text = re.findall( r'[0-9]+(?:\.[0-9]+){3}', get(ip_site).text)
+        return ip_text
+    except:
+      return 'error'
+  return 'error'
 
 
 def send_email(email_config, text_body, html_body):
@@ -88,12 +96,16 @@ def init():
 
 
 def check_ip_change():
-  with open('last_ip.txt', 'r') as file:
-    for line in file:
-      if get_ISP_IP() != line:
-        return True
-      else:
-        return False
+  isp_ip = get_ISP_IP()
+  if isp_ip != 'error':
+    with open('last_ip.txt', 'r') as file:
+      for line in file:
+        if get_ISP_IP() != line:
+          return True
+        else:
+          return False
+  else:
+    return False
 
 
 if __name__ == '__main__':
