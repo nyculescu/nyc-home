@@ -3,11 +3,12 @@ import configparser
 import requests
 import smtplib
 import sys
-import datetime
+import jinja2
+import mistune
 
+from datetime import datetime
 from collections import namedtuple
 from requests import get
-
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -25,50 +26,69 @@ with open(EMAIL_TEMPLATE_FILE) as md_file:
 with open(EMAIL_STYLING_FILE) as html_file:
     EMAIL_STYLING = html_file.read()
 
-# Get the ISP's IPv4 from the current network
+
+def compose_email_body():
+  text_body = EMAIL_TEMPLATE.format(
+      **{'text_to_be_added': 'The new IP is: %s' % get_ISP_IP(),
+         'timestamp': str(datetime.now()),
+         'which_script': 'email_when_ip_changes'})
+
+  html_content = mistune.markdown(text_body)
+  html_body = jinja2.Template(EMAIL_STYLING).render(content=html_content)
+
+  return text_body, html_body
+
+
 def get_ISP_IP():
   ip = get('https://api.ipify.org').text
   return ip
 
-# Sends the email
-def send_email(email_config):
+
+def send_email(email_config, text_body, html_body):
     '''
     Send an email with the text and html body, using the parameters
     configured in email_config
     '''
-
     msg = MIMEMultipart('alternative')
     msg['Subject'] = 'Home IP update'
     msg['From'] = email_config.from_
     msg['To'] = email_config.to
 
-    text_isp_ip = 'The new IP is: %s' % get_ISP_IP()
-    text_gathered = {'text_to_be_added' : text_isp_ip}
-    text_body = EMAIL_TEMPLATE.format(**text_gathered)
     part_plain = MIMEText(text_body, 'plain')
-    #part_html = MIMEText(html_body, 'html')
+    part_html = MIMEText(html_body, 'html')
 
     msg.attach(part_plain)
-    #msg.attach(part_html)
+    msg.attach(part_html)
 
     with smtplib.SMTP('smtp.gmail.com', 587) as server:
         server.starttls()
         server.login(email_config.user, email_config.password)
         server.sendmail(email_config.from_, [email_config.to], msg.as_string())
 
-if __name__ == '__main__':
+
+def init():
   parser = argparse.ArgumentParser()
-  parser.add_argument(type=argparse.FileType('r'), dest='config', help='config file')
-  parser.add_argument('-o', dest='output', type=argparse.FileType('w'), help='output file', default=sys.stdout)
+  parser.add_argument(type=argparse.FileType(
+      'r'), dest='config', help='config file')
+  parser.add_argument('-o', dest='output', type=argparse.FileType('w'),
+                      help='output file', default=sys.stdout)
 
   args = parser.parse_args()
   config = configparser.ConfigParser()
   config.read_file(args.config)
 
   email_user = config['EMAIL']['user']
+  # Here is a tricky part with Google. Go to https://support.google.com/accounts/answer/185833?hl=en-GB and follow "How to generate an App password"
+  # Into App passwords -> Select app: Mail, Select device: Other (or whatever you need)
   email_password = config['EMAIL']['password']
   email_from = config['EMAIL']['from']
   email_to = config['EMAIL']['to']
   email_config = EmailConfig(email_user, email_password, email_from, email_to)
+  return email_config
 
-  send_email(email_config)
+
+if __name__ == '__main__':
+
+  email_config = init()
+  text_body, html_body = compose_email_body()
+  send_email(email_config, text_body, html_body)
