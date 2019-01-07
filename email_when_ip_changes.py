@@ -87,8 +87,20 @@ def init():
   return email_config
 
 
-if __name__ == '__main__':
+def check_ip_change():
+  with open('last_ip.txt', 'r') as file:
+    for line in file:
+      if get_ISP_IP() != line:
+        return True
+      else:
+        return False
 
-  email_config = init()
-  text_body, html_body = compose_email_body()
-  send_email(email_config, text_body, html_body)
+
+if __name__ == '__main__':
+  #Check the new IP against the oldest one
+  if check_ip_change():
+    email_config = init()
+    text_body, html_body = compose_email_body()
+    send_email(email_config, text_body, html_body)
+    with open('last_ip.txt', 'w', encoding='iso-8859-1') as file:
+      file.write(get_ISP_IP())
