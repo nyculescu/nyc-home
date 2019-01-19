@@ -31,9 +31,9 @@ with open(EMAIL_STYLING_FILE) as html_file:
     EMAIL_STYLING = html_file.read()
 
 
-def compose_email_body():
+def compose_email_body(ip_):
   text_body = EMAIL_TEMPLATE.format(
-      **{'text_to_be_added': 'The new IP is: %s' % get_ISP_IP(),
+      **{'text_to_be_added': 'The new IP is: %s' % ip_,
          'timestamp': str(datetime.now()),
          'which_script': 'email_when_ip_changes'})
 
@@ -121,7 +121,7 @@ if __name__ == '__main__':
   isp_ip = get_ISP_IP()
   if check_ip_change(isp_ip):
     email_config = init()
-    text_body, html_body = compose_email_body()
+    text_body, html_body = compose_email_body(isp_ip)
     send_email(email_config, text_body, html_body)
     # The last_ip file is updated here in order to be sure that the email is sent
     with open(last_ip_txt_file, 'w') as file:
